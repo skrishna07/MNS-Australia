@@ -84,7 +84,7 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         else:
             extracted_text = extract_text_from_pdf_with_keyword(pdf_path,keywords)
             extracted_text = extracted_text.replace(',', '')
-        if "$'000'" in extracted_text:
+        if "$'000" in extracted_text or "$ 000" in extracted_text or "$'000'" in extracted_text:
             currency = 'AUD 000'
         else:
             currency = 'AUD'
