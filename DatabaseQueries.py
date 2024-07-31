@@ -253,7 +253,7 @@ def update_database_single_value(db_config, table_name, registration_no_column_n
     db_connection.close()
 
 
-def insert_datatable_with_table_director(config_dict, db_config, sql_table_name, column_names_list, df_row):
+def insert_datatable_with_table_director(config_dict, db_config, sql_table_name, column_names_list, df_row, field_name):
     setup_logging()
     db_connection = mysql.connector.connect(**db_config)
     db_cursor = db_connection.cursor()
@@ -373,16 +373,19 @@ def insert_datatable_with_table_director(config_dict, db_config, sql_table_name,
             db_cursor.execute(insert_query, tuple(df_row.values))
             # logging.info(f"Data row values are saved in table {sql_table_name} with \n {df_row}")
         else:
-            result_dict.pop(registration_column_name)
-            result_dict.pop(name_column_name)
-            column_names_list = list(column_names_list)
-            column_names_list.remove(registration_column_name)
-            column_names_list.remove(name_column_name)
-            update_query = f'''UPDATE {sql_table_name} SET {', '.join([f'{col} = "{str(result_dict[col])}"' for col in column_names_list])} 
-                            WHERE {registration_column_name} = "{registration_no}" AND {name_column_name} = "{name}"'''
-            logging.info(update_query)
-            db_cursor.execute(update_query)
-            logging.info(f"Data row values are saved in table '{sql_table_name}' with \n {df_row}")
+            if field_name != 'previous_business_address':
+                result_dict.pop(registration_column_name)
+                result_dict.pop(name_column_name)
+                column_names_list = list(column_names_list)
+                column_names_list.remove(registration_column_name)
+                column_names_list.remove(name_column_name)
+                update_query = f'''UPDATE {sql_table_name} SET {', '.join([f'{col} = "{str(result_dict[col])}"' for col in column_names_list])} 
+                                WHERE {registration_column_name} = "{registration_no}" AND {name_column_name} = "{name}"'''
+                logging.info(update_query)
+                db_cursor.execute(update_query)
+                logging.info(f"Data row values are saved in table '{sql_table_name}' with \n {df_row}")
+            else:
+                logging.info(f"Business address already there in registered previous address so not updating")
     db_cursor.close()
     db_connection.close()
 

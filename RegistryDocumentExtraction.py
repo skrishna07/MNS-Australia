@@ -5,9 +5,6 @@ import os
 import logging
 from AmazonOCRAllPages import extract_text_from_pdf
 from OpenAI import split_openai
-from ReadExcelConfig import create_main_config_dictionary
-from DatabaseQueries import get_db_credentials
-from DatabaseQueries import update_database_single_value_with_one_column_check
 from DatabaseQueries import update_database_single_value
 from DatabaseQueries import insert_datatable_with_table_director
 import traceback
@@ -195,7 +192,7 @@ def registry_document_main(db_config, config_dict, pdf_path, output_file_path, r
                 for _, df_row in table_df.iterrows():
                     try:
                         insert_datatable_with_table_director(config_dict, db_config, sql_table_name, column_names_list,
-                                                             df_row)
+                                                             df_row, field_name)
                     except Exception as e:
                         logging.info(
                             f'Exception {e} occurred while inserting below table row in table {sql_table_name}- \n',

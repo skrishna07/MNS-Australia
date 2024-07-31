@@ -19,7 +19,7 @@ from SendEmail import send_email
 
 
 def main():
-    excel_file = 'Config.xlsx'
+    excel_file = 'Australia_Main_Config.xlsx'
     run_environment = os.environ.get('RunEnvironment')
     system_name = os.environ.get('SystemName')
     if 'dev' in run_environment.lower():

@@ -176,7 +176,8 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         else:
                             financial_value = value[node]
                     try:
-                        financial_value = float(financial_value)
+                        if field_name != 'year':
+                            financial_value = float(financial_value)
                     except:
                         pass
                     company_year_df.at[index, 'Value'] = financial_value
@@ -204,7 +205,8 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         else:
                             financial_value = value[node]
                     try:
-                        financial_value = float(financial_value)
+                        if field_name != 'year':
+                            financial_value = float(financial_value)
                     except:
                         pass
                     group_year_df.at[index, 'Value'] = financial_value
