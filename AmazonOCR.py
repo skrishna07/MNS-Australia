@@ -6,7 +6,7 @@ import re
 load_dotenv(find_dotenv())
 
 
-def extract_text_from_pdf_with_keyword(pdf_file_path, keywords):
+def extract_text_from_pdf_with_keyword(pdf_file_path, header_keywords, field_keywords):
     # Upload the PDF file to S3
     access_key = os.environ.get('aws_access_key')
     secret_access_key = os.environ.get('aws_secret_access_key')
@@ -68,7 +68,7 @@ def extract_text_from_pdf_with_keyword(pdf_file_path, keywords):
         keyword_page = 0
         for page_number in sorted(extracted_text.keys()):
             numbers = re.findall(r'\b\d{5,}\b', extracted_text[page_number].replace(',',''))
-            if all(keyword.lower() in extracted_text[page_number].lower() for keyword in keywords):
+            if any(header_keyword.lower() in extracted_text[page_number].lower() for header_keyword in header_keywords) and any(field_keyword.lower() in extracted_text[page_number].lower() for field_keyword in field_keywords):
                 keyword_page = page_number
                 break
 
@@ -79,7 +79,7 @@ def extract_text_from_pdf_with_keyword(pdf_file_path, keywords):
                     combined_text += f"Page {page_number}:\n{extracted_text[page_number]}\n"
             return combined_text.strip()
         else:
-            print(f"Any of Keyword '{keywords}' not found in the document.")
+            print(f"Any of Keyword '{header_keywords}' and '{field_keywords}' not found in the document.")
             return None
     else:
         # Handle the case where the job failed

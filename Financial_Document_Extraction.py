@@ -27,7 +27,7 @@ def remove_string(text, string_to_remove):
     return text
 
 
-def find_header_and_next_pages(pdf_path, fields):
+def find_header_and_next_pages(pdf_path, header_fields, fields):
     # Open the PDF file
     pdf_file = open(pdf_path, 'rb')
     pdf_reader = PyPDF2.PdfReader(pdf_file)
@@ -42,7 +42,7 @@ def find_header_and_next_pages(pdf_path, fields):
         combined_text = combined_text.replace(',','')
         numbers = re.findall(r'\b\d{5,}\b', combined_text)
         # Check if all fields are in the combined text
-        if combined_text and all(field in combined_text.lower() for field in fields):
+        if combined_text and any(header_field in combined_text.lower() for header_field in header_fields) and any(field in combined_text.lower() for field in fields):
             next_page = page_num + 2 if page_num + 2 < num_pages else None
             return page_num, next_page
     return None, None
@@ -70,19 +70,21 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
     errors = []
     try:
         if financial_type == 'finance':
-            keywords = str(config_dict['financial_headers']).split(',')
+            header_keywords = str(config_dict['financial_headers']).split(',')
+            field_keywords = str(config_dict['financial_fields']).split(',')
         elif financial_type == 'pnl':
-            keywords = str(config_dict['profit_and_loss_headers']).split(',')
+            header_keywords = str(config_dict['profit_and_loss_headers']).split(',')
+            field_keywords = str(config_dict['profit_and_loss_fields']).split(',')
         else:
             raise Exception("No Input financial type provided")
-        start_page, end_page = find_header_and_next_pages(pdf_path, keywords)
+        start_page, end_page = find_header_and_next_pages(pdf_path, header_keywords, field_keywords)
         if start_page is not None and end_page is not None:
             split_pdf(pdf_path,start_page,end_page,temp_pdf_path)
             extracted_text = extract_text_from_pdf(temp_pdf_path)
             extracted_text = extracted_text.replace(',', '')
             logging.info(extracted_text)
         else:
-            extracted_text = extract_text_from_pdf_with_keyword(pdf_path,keywords)
+            extracted_text = extract_text_from_pdf_with_keyword(pdf_path,header_keywords, field_keywords)
             extracted_text = extracted_text.replace(',', '')
         if "$'000" in extracted_text or "$ 000" in extracted_text or "$'000'" in extracted_text:
             currency = 'AUD 000'
