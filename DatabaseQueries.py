@@ -685,3 +685,54 @@ def update_end_time(db_config, registration_no, database_id):
         connection.close()
     except Exception as e:
         logging.info(f"Error updating end time {e}")
+
+
+def get_extraction_status(db_config, registration_no, database_id):
+    setup_logging()
+    connection = mysql.connector.connect(**db_config)
+    cursor = connection.cursor()
+    try:
+        retry_counter_query = f"select directors_extraction_status,other_than_directors_extraction_status from documents where registration_no = '{registration_no}' and id = {database_id}"
+        logging.info(retry_counter_query)
+        cursor.execute(retry_counter_query)
+        result = cursor.fetchall()[0]
+        financial_result = result[0]
+        profit_and_loss_result = result[1]
+        logging.info(f"Extraction status {result}")
+        return financial_result, profit_and_loss_result
+    except Exception as e:
+        logging.info(f"Exception occurred while updating retry counter by {e}")
+        return None
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def update_extraction_status_directors(db_config, registration_no, database_id):
+    setup_logging()
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        connection.autocommit = True
+        update_query = f"update documents set directors_extraction_status = 'Y' where registration_no = '{registration_no}' and id = {database_id}"
+        logging.info(update_query)
+        cursor.execute(update_query)
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        logging.error(f"Error updating extraction status {e}")
+
+
+def update_extraction_status_other_than_directors(db_config, registration_no, database_id):
+    setup_logging()
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        connection.autocommit = True
+        update_query = f"update documents set other_than_directors_extraction_status = 'Y' where registration_no = '{registration_no}' and id = {database_id}"
+        logging.info(update_query)
+        cursor.execute(update_query)
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        logging.error(f"Error updating extraction status {e}")

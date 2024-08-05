@@ -9,6 +9,7 @@ from DatabaseQueries import update_database_single_value
 from DatabaseQueries import insert_datatable_with_table_director
 import traceback
 from datetime import datetime
+from AmazonOCR import extract_text_from_pdf_between_two_keywords
 
 
 def remove_text_before_marker(text, marker):
@@ -44,12 +45,17 @@ def get_age(DOB):
         return None
 
 
-def registry_document_main(db_config, config_dict, pdf_path, output_file_path, registration_no):
+def registry_document_main(db_config, config_dict, pdf_path, output_file_path, registration_no, input_type):
     setup_logging()
     error_count = 0
     errors = []
     try:
-        extraction_config = config_dict['extraction_config_path']
+        if input_type == 'directors':
+            extraction_config = config_dict['registry_config_path_directors']
+        elif input_type == 'other_than_directors':
+            extraction_config = config_dict['registry_config_path_other_than_directors']
+        else:
+            raise Exception("Invalid Input type")
         map_file_sheet_name = config_dict['config_sheet']
         if not os.path.exists(extraction_config):
             raise Exception("Main Mapping File not found")
@@ -69,8 +75,14 @@ def registry_document_main(db_config, config_dict, pdf_path, output_file_path, r
             main_node = row['main_dict_node']
             sub_list = {main_node: [sub_dict]}
             open_ai_dict.update(sub_list)
-        pdf_text = extract_text_from_pdf(pdf_path)
-        form10_prompt = config_dict['common_prompt'] + '\n' + str(open_ai_dict)
+        if input_type == 'directors':
+            start_key = config_dict['director_start_keyword']
+            end_key = config_dict['director_end_keyword']
+            pdf_text = extract_text_from_pdf_between_two_keywords(pdf_path, start_key, end_key)
+            form10_prompt = config_dict['registry_prompt_other_directors'] + '\n' + str(open_ai_dict)
+        else:
+            pdf_text = extract_text_from_pdf(pdf_path)
+            form10_prompt = config_dict['registry_prompt'] + '\n' + str(open_ai_dict)
         output = split_openai(pdf_text, form10_prompt)
         output = remove_text_before_marker(output, "```json")
         output = remove_string(output, "```")

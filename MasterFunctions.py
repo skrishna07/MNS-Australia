@@ -16,6 +16,9 @@ from OrderJson import order_json
 from FinalEmailTable import final_table
 from Holding_Entities import get_holding_entities
 from AddressSplit import split_address
+from DatabaseQueries import get_extraction_status
+from DatabaseQueries import update_extraction_status_directors
+from DatabaseQueries import update_extraction_status_other_than_directors
 
 
 def data_extraction_and_insertion(db_config, registration_no, config_dict):
@@ -34,8 +37,21 @@ def data_extraction_and_insertion(db_config, registration_no, config_dict):
                 category = document[3]
                 output_path = str(document_download_path).replace('.pdf', '.xlsx')
                 if 'registry' in str(category).lower():
-                    registry_document_extraction = registry_document_main(db_config, config_dict, document_download_path, output_path, registration_no)
-                    if registry_document_extraction:
+                    extraction_status_directors, extraction_status_other_directors = get_extraction_status(db_config, registration_no, document_id)
+                    if str(extraction_status_directors).lower() != 'y':
+                        input_extraction = 'directors'
+                        registry_document_extraction_directors = registry_document_main(db_config, config_dict, document_download_path, output_path, registration_no, input_extraction)
+                        if registry_document_extraction_directors:
+                            logging.info(f"Successfully extracted directors for {document_name}")
+                            update_extraction_status_directors(db_config, registration_no, document_id)
+                    if str(extraction_status_other_directors).lower() != 'y':
+                        input_extraction = 'other_than_directors'
+                        registry_document_extraction_other_than_directors = registry_document_main(db_config, config_dict, document_download_path, output_path, registration_no, input_extraction)
+                        if registry_document_extraction_other_than_directors:
+                            logging.info(f"Successfully extracted other than directors for {document_name}")
+                            update_extraction_status_other_than_directors(db_config, registration_no, document_id)
+                    updated_extraction_status_directors, updated_extraction_status_other_directors = get_extraction_status(db_config, registration_no, document_id)
+                    if str(updated_extraction_status_directors).lower() == 'y' and str(updated_extraction_status_other_directors).lower() == 'y':
                         logging.info(f"Successfully extracted for {document_name}")
                         update_extraction_status(db_config, document_id, registration_no)
                 elif 'financial' in str(category).lower():
