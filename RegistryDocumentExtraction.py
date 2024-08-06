@@ -171,7 +171,7 @@ def registry_document_main(db_config, config_dict, pdf_path, output_file_path, r
                     table_df['percentage_holding'] = None
                     column_names_list.append('percentage_holding')
                     try:
-                        total_equity_shares = single_df[single_df['Field_Name'] == 'paid_up_capital']['Value'].values[0]
+                        total_equity_shares = single_df[single_df['Field_Name'] == 'total_equity_shares']['Value'].values[0]
                         total_equity_shares = str(total_equity_shares)
                         total_equity_shares = str(total_equity_shares).replace(',','')
                         total_equity_shares = float(total_equity_shares)
