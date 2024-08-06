@@ -19,6 +19,7 @@ from AddressSplit import split_address
 from DatabaseQueries import get_extraction_status
 from DatabaseQueries import update_extraction_status_directors
 from DatabaseQueries import update_extraction_status_other_than_directors
+from FinalEmailTable import financials_table
 
 
 def data_extraction_and_insertion(db_config, registration_no, config_dict):
@@ -146,6 +147,7 @@ def json_loader_and_tables(db_config, config_excel_path, registration_no, receip
                 except Exception as e:
                     logging.error(f"Error occurred while ordering for {json_node} {e}")
             final_email_table = final_table(db_config, registration_no, database_id)
+            financial_table = financials_table(db_config, registration_no)
     except Exception as e:
         logging.error(f"Exception occurred while generating json loader {e}")
         tb = traceback.extract_tb(e.__traceback__)
@@ -154,4 +156,4 @@ def json_loader_and_tables(db_config, config_excel_path, registration_no, receip
                 errors.append(f"File {frame.filename},Line {frame.lineno}: {frame.line} - {str(e)}")
         raise Exception(errors)
     else:
-        return True, final_email_table, json_file_path
+        return True, final_email_table, json_file_path, financial_table
