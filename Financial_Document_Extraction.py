@@ -126,7 +126,12 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         master_dict["Group"][0]["YYYY"] = str(open_ai_dict)
         master_dict["Company"][0]["YYYY"] = str(open_ai_dict)
         logging.info(master_dict)
-        prompt = config_dict['financial_prompt'] + '\n' + str(master_dict) + '\n' + '\n' + str(config_dict['financial_example_prompt'])
+        if financial_type == 'finance':
+            prompt = config_dict['financial_prompt'] + '\n' + str(master_dict) + '\n' + '\n' + str(config_dict['financial_example_prompt'])
+        elif financial_type == 'pnl':
+            prompt = config_dict['profit_and_loss_prompt'] + '\n' + str(master_dict) + '\n' + '\n' + str(config_dict['financial_example_prompt'])
+        else:
+            raise Exception("No input financial type provided")
         output = split_openai(extracted_text, prompt)
         try:
             output = re.sub(r'(?<=: ")(\d+(,\d+)*)(?=")', lambda x: x.group(1).replace(",", ""), output)
