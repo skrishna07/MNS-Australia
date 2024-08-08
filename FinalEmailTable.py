@@ -188,4 +188,3 @@ def financials_table(db_config, registration_no):
     except Exception as e:
         print(f"Exception in generating Fianancials Table {e}")
         return None
-    
