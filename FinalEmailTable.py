@@ -147,8 +147,8 @@ def financials_table(db_config, registration_no):
                 pass
             taxonomy = result[10]
             nature = result[8]
-            subtotals = result[13]
-            pnl_items = result[14]
+            subtotals = result[14]
+            pnl_items = result[15]
             subtotals_dict = json.loads(subtotals)
             pnl_dict = json.loads(pnl_items)
             try:
@@ -188,3 +188,4 @@ def financials_table(db_config, registration_no):
     except Exception as e:
         print(f"Exception in generating Fianancials Table {e}")
         return None
+    
