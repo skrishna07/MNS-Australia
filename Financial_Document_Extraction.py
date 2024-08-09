@@ -120,11 +120,11 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
             open_ai_dict[field_node] = {field_name: '' for field_name in straight_nodes_list}
         straight_field_nodes = straight_df[(straight_df['main_dict_node'] == '') | (straight_df['main_dict_node'].isna())]['Node'].unique()
         exclude_fields = ['year', 'financial_year', 'nature', 'filing_type', 'filing_standard','Currency']
-        master_dict = {"Group": [{'YYYY': ""}], "Company": [{'YYYY': ""}]}
+        master_dict = {"Group": [{'YYYY-MM-DD': ""}], "Company": [{'YYYY-MM-DD': ""}]}
         open_ai_dict_straight = {field_name: '' for field_name in straight_field_nodes if field_name not in exclude_fields}
         open_ai_dict.update(open_ai_dict_straight)
-        master_dict["Group"][0]["YYYY"] = str(open_ai_dict)
-        master_dict["Company"][0]["YYYY"] = str(open_ai_dict)
+        master_dict["Group"][0]["YYYY-MM-DD"] = str(open_ai_dict)
+        master_dict["Company"][0]["YYYY-MM-DD"] = str(open_ai_dict)
         logging.info(master_dict)
         if financial_type == 'finance':
             prompt = config_dict['financial_prompt'] + '\n' + str(master_dict) + '\n' + '\n' + str(config_dict['financial_example_prompt'])
