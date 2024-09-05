@@ -353,6 +353,8 @@ def insert_datatable_with_table_director(config_dict, db_config, sql_table_name,
             name_column_name = config_dict['name_column_name_in_db_directors']
         elif sql_table_name == 'associate_entities_companies':
             name_column_name = config_dict['name_column_name_in_associate_companies']
+        elif sql_table_name == 'branch_address':
+            name_column_name = config_dict['address_column_name']
         else:
             raise Exception("Invalid table")
         name = result_dict[name_column_name]
