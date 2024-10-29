@@ -145,15 +145,34 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         except:
             output = json.loads(output)
         try:
+            # Handle Group Output
             if len(output["Group"]) != 0:
-                group_output = output["Group"][0]
+                # If the first structure is detected (list of dictionaries per year)
+                if isinstance(output["Group"][0], dict):
+                    # For first structure where years are inside dictionaries
+                    group_output = {}
+                    for item in output["Group"]:
+                        group_output.update(item)
+                else:
+                    # For second structure where years are keys within the first dictionary
+                    group_output = output["Group"][0]
             else:
                 group_output = {}
         except:
             group_output = {}
+
         try:
+            # Handle Company Output
             if len(output["Company"]) != 0:
-                company_output = output["Company"][0]
+                # If the first structure is detected (list of dictionaries per year)
+                if isinstance(output["Company"][0], dict):
+                    # For first structure where years are inside dictionaries
+                    company_output = {}
+                    for item in output["Company"]:
+                        company_output.update(item)
+                else:
+                    # For second structure where years are keys within the first dictionary
+                    company_output = output["Company"][0]
             else:
                 company_output = {}
         except:
