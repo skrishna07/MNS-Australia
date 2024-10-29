@@ -8,6 +8,7 @@ import traceback
 # Get today's date in yyyy-mm-dd format
 today_date = datetime.today().strftime('%Y-%m-%d')
 
+
 # Function to extract text from the PDF
 def extract_pdf_text(pdf_path):
     with open(pdf_path, 'rb') as pdf_file:
@@ -18,76 +19,104 @@ def extract_pdf_text(pdf_path):
     return pdf_text
 
 
-# Function to extract directors and their details properly
-def extract_directors(text, search_keyword):
-    directors = []
-    current_director = []
-    in_director_section = False
+# Function to dynamically detect designations and separate directors based on keywords
+def extract_directors_dynamically(text, name_keyword="Name:"):
+    # Define main designations with their "Previous" variations
+    base_designations = [
+        "Director", "Alternate Director", "Secretary"
+    ]
+    # Generate both current and previous variations for each designation
+    designations = [f"Previous {role}" for role in base_designations] + base_designations
+
+    designation_dict = {}
+    current_designation = None
+    current_entry = []
 
     for line in text.splitlines():
-        # Detect start of a new director
-        if search_keyword in line:
-            # If a director is already being processed, store the current one before starting a new one
-            if current_director:
-                directors.append("\n".join(current_director))
-                current_director = []
-            in_director_section = True  # Start collecting for a new director
+        # Detect possible designation keywords dynamically, checking "Previous" variants first
+        matched_designation = None
+        for designation in designations:
+            if designation in line:
+                matched_designation = designation
+                break
 
-        # Continue collecting details for the current director
-        if in_director_section:
-            current_director.append(line)
+        # If a designation is detected, save the current entry and update the designation
+        if matched_designation:
+            if current_entry and current_designation:
+                # Initialize the designation list if it doesn't exist
+                if current_designation not in designation_dict:
+                    designation_dict[current_designation] = []
+                designation_dict[current_designation].append("\n".join(current_entry))
+                current_entry = []
 
-    # Add the last director after loop ends
-    if current_director:
-        directors.append("\n".join(current_director))
+            # Set the current designation and ensure it is initialized in the dictionary
+            current_designation = matched_designation
+            if current_designation not in designation_dict:
+                designation_dict[current_designation] = []
 
-    return directors
+        # Detect start of a new director entry within the same designation
+        elif name_keyword in line and current_designation:
+            # Save the current director entry if it exists
+            if current_entry:
+                designation_dict[current_designation].append("\n".join(current_entry))
+                current_entry = []
+
+        # Continue adding lines to the current entry
+        if current_designation:
+            current_entry.append(line)
+
+    # Add the last director entry after the loop ends
+    if current_entry and current_designation:
+        designation_dict[current_designation].append("\n".join(current_entry))
+
+    return designation_dict
 
 
-# Function to create text files dynamically with spacing between directors
-def create_text_files(directors, folder_path, group_size=10, delimiter="\n\n---\n\n"):
+# Function to create text files dynamically with designation label at the start of each file
+def create_designation_files(designation_dict, folder_path, group_size=10, delimiter="\n\n---\n\n"):
     os.makedirs(folder_path, exist_ok=True)
-    file_count = len(directors) // group_size
-    remainder = len(directors) % group_size
-    file_number = 1
-    index = 0
+    for designation, entries in designation_dict.items():
+        file_count = len(entries) // group_size
+        remainder = len(entries) % group_size
+        file_number = 1
+        index = 0
 
-    # Create files with groups of directors
-    for _ in range(file_count):
-        with open(os.path.join(folder_path, f'File_{file_number}.txt'), 'w') as file:
-            file.write(delimiter.join(directors[index:index + group_size]))
-        file_number += 1
-        index += group_size
+        # Create files with groups of entries for each designation
+        for _ in range(file_count):
+            file_path = os.path.join(folder_path, f'{designation.replace(" ", "_")}_File_{file_number}.txt')
+            with open(file_path, 'w') as file:
+                file.write(f"{designation}\n\n")  # Add designation label at the top
+                file.write(delimiter.join(entries[index:index + group_size]))
+            file_number += 1
+            index += group_size
 
-    # If there are remaining directors, put them in another file
-    if remainder > 0:
-        with open(os.path.join(folder_path, f'File_{file_number}.txt'), 'w') as file:
-            file.write(delimiter.join(directors[index:index + remainder]))
+        # If there are remaining entries, put them in another file
+        if remainder > 0:
+            file_path = os.path.join(folder_path, f'{designation.replace(" ", "_")}_File_{file_number}.txt')
+            with open(file_path, 'w') as file:
+                file.write(f"{designation}\n\n")  # Add designation label at the top
+                file.write(delimiter.join(entries[index:index + remainder]))
 
 
-# Define the main function
-def pdf_to_text_files(pdf_path, input_type):
-    errors = []
+# Main function
+def pdf_to_text_files_dynamically(pdf_path):
     setup_logging()
+    errors = []
     try:
         output_company_folder = os.path.dirname(pdf_path)
-        if input_type == 'directors':
-            director_text_files_folder = os.path.join(output_company_folder, f"director_text_files_{today_date}")
-            search_keyword = 'Name:'
-        else:
-            raise Exception("Invalid Input Type")
-        if not os.path.exists(director_text_files_folder):
-            os.makedirs(director_text_files_folder)
+        designation_text_files_folder = os.path.join(output_company_folder, f"designation_text_files_{today_date}")
+
         # Extract text from the PDF
         pdf_text = extract_pdf_text(pdf_path)
 
-        # Extract directors, ensuring that all details including multiple official positions are grouped properly
-        directors = extract_directors(pdf_text, search_keyword)
+        # Extract directors and dynamically categorize by designation
+        designation_dict = extract_directors_dynamically(pdf_text)
 
-        # Create text files with groups of directors, with spacing between entries
-        create_text_files(directors, director_text_files_folder)
+        # Create text files with grouped entries for each designation
+        create_designation_files(designation_dict, designation_text_files_folder)
 
-        logging.info(f"Text files have been created in the '{director_text_files_folder}' folder with proper grouping of positions under each director.")
+        logging.info(
+            f"Text files have been created in the '{designation_text_files_folder}' folder, categorized by designation.")
     except Exception as e:
         logging.error(f"Exception occurred while creating text files {e}")
         tb = traceback.extract_tb(e.__traceback__)
@@ -96,4 +125,4 @@ def pdf_to_text_files(pdf_path, input_type):
                 errors.append(f"Line {frame.lineno}: {frame.line} - {str(e)}")
         raise Exception('\n'.join(errors))
     else:
-        return True, director_text_files_folder
+        return True, designation_text_files_folder

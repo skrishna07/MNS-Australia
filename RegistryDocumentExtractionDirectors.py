@@ -8,7 +8,7 @@ from DatabaseQueries import update_database_single_value
 import traceback
 from datetime import datetime
 from DatabaseQueries import insert_datatable_with_table_director
-from DirectorsSplitTextFiles import pdf_to_text_files
+from DirectorsSplitTextFiles import pdf_to_text_files_dynamically
 import PyPDF2
 
 
@@ -101,7 +101,7 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
         director_end_headers = str(config_dict['director_end_headers']).split(',')
         start_page, end_page = find_header_and_next_pages(pdf_path, director_start_header, director_end_headers)
         split_pdf(pdf_path, start_page, end_page, temp_directors_pdf_path)
-        text_files_status, text_files_folder = pdf_to_text_files(temp_directors_pdf_path, input_type)
+        text_files_status, text_files_folder = pdf_to_text_files_dynamically(temp_directors_pdf_path)
         if not text_files_status:
             return False
         map_file_sheet_name = config_dict['config_sheet']
