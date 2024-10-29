@@ -20,6 +20,7 @@ from DatabaseQueries import get_extraction_status
 from DatabaseQueries import update_extraction_status_directors
 from DatabaseQueries import update_extraction_status_other_than_directors
 from FinalEmailTable import financials_table
+from RegistryDocumentExtractionDirectors import registry_document_main_director
 
 
 def data_extraction_and_insertion(db_config, registration_no, config_dict):
@@ -40,8 +41,19 @@ def data_extraction_and_insertion(db_config, registration_no, config_dict):
                 if 'registry' in str(category).lower():
                     extraction_status_directors, extraction_status_other_directors = get_extraction_status(db_config, registration_no, document_id)
                     if str(extraction_status_directors).lower() != 'y':
+                        temp_pdf_directory = os.path.dirname(document_download_path)
+                        pdf_document_name = os.path.basename(document_download_path)
+                        pdf_document_name = str(pdf_document_name).replace('.pdf', '')
+                        temp_pdf_name_directors = 'temp_directors_' + pdf_document_name
+                        if '.pdf' not in temp_pdf_name_directors:
+                            temp_pdf_name_directors = temp_pdf_name_directors + '.pdf'
+                        temp_pdf_path_directors = os.path.join(temp_pdf_directory, temp_pdf_name_directors)
+                        directors_output_file_name = 'directors_' + pdf_document_name
+                        if '.xlsx' not in directors_output_file_name:
+                            directors_output_file_name = directors_output_file_name + '.xlsx'
+                        directors_output_file_path = os.path.join(temp_pdf_directory, directors_output_file_name)
                         input_extraction = 'directors'
-                        registry_document_extraction_directors = registry_document_main(db_config, config_dict, document_download_path, output_path, registration_no, input_extraction)
+                        registry_document_extraction_directors = registry_document_main_director(db_config, config_dict, document_download_path, directors_output_file_path, registration_no, input_extraction, temp_pdf_path_directors)
                         if registry_document_extraction_directors:
                             logging.info(f"Successfully extracted directors for {document_name}")
                             update_extraction_status_directors(db_config, registration_no, document_id)
@@ -135,6 +147,7 @@ def json_loader_and_tables(db_config, config_excel_path, registration_no, receip
         root_path = config_dict['Root path']
         sheet_name = 'JSON_Loader_SQL_Queries'
         final_email_table = None
+        financial_table = None
         json_loader_status, json_file_path, json_nodes = json_loader(db_config, config_json_file_path, registration_no, root_path, config_excel_path, sheet_name, receipt_no)
         if json_loader_status:
             order_sheet_name = "JSON Non-LLP Order"
