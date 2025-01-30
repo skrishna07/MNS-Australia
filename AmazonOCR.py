@@ -74,7 +74,7 @@ def extract_text_from_pdf_with_keyword(pdf_file_path, header_keywords, field_key
 
         if keyword_page != 0:
             combined_text = ""
-            for page_number in range(keyword_page, keyword_page + 2):
+            for page_number in range(keyword_page, keyword_page + 9):
                 if page_number in extracted_text:
                     combined_text += f"Page {page_number}:\n{extracted_text[page_number]}\n"
             return combined_text.strip()

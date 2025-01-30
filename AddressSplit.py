@@ -23,7 +23,7 @@ def split_address(registration_no,config_dict,db_config):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     connection.autocommit = True
-    address_query = f"select address,id from authorized_signatories where registration_no = '{registration_no}'"
+    address_query = f"select address,id,nationality from authorized_signatories where registration_no = '{registration_no}'"
     logging.info(address_query)
     cursor.execute(address_query)
     address_list = cursor.fetchall()
@@ -34,6 +34,11 @@ def split_address(registration_no,config_dict,db_config):
         try:
             address_to_split = address[0]
             database_id = address[1]
+            nationality_key=address[2]
+            nationality_key = nationality_key.replace("'", "").replace('"', "")
+            if str(nationality_key).lower()!= 'null' and nationality_key is not None:
+                if 'nsw' in nationality_key.lower():
+                    nationality_key='Australian'
             address_to_split = address_to_split.replace("'", "").replace('"', "")
             logging.info(address_to_split)
             if str(address_to_split).lower() != 'null' and address_to_split is not None:
@@ -53,7 +58,7 @@ def split_address(registration_no,config_dict,db_config):
                     splitted_address = str(splitted_address).replace("'",'"')
                 except:
                     pass
-                update_query = f"update authorized_signatories set splitted_address = '{splitted_address}' where registration_no = '{registration_no}' and id = {database_id}"
+                update_query = f"update authorized_signatories set splitted_address = '{splitted_address}',nationality='{nationality_key}' where registration_no = '{registration_no}' and id = {database_id}"
                 logging.info(update_query)
                 cursor.execute(update_query)
                 cursor.close()

@@ -12,6 +12,12 @@ import json
 from DatabaseQueries import update_database_single_value_financial
 from DatabaseQueries import get_db_credentials
 import PyPDF2
+from DatabaseQueries import get_split_pdf_path
+from Azure_Document_Intelligence_Studio import azure_pdf_to_excel_conversion
+from DatabaseQueries import update_excel_status_and_path
+from DatabaseQueries import insert_new_tags
+from Australia_mapping_and_comparison import australia_mapping_and_comp
+from pathlib import Path
 
 
 def remove_text_before_marker(text, marker):
@@ -64,7 +70,7 @@ def split_pdf(file_path, start_page, end_page, output_path):
         raise Exception(e)
 
 
-def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_path, financial_type, temp_pdf_path):
+def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_path, financial_type, temp_pdf_path, database_id):
     setup_logging()
     error_count = 0
     errors = []
@@ -72,9 +78,11 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         if financial_type == 'finance':
             header_keywords = str(config_dict['financial_headers']).split(',')
             field_keywords = str(config_dict['financial_fields']).split(',')
+            is_pnl = False
         elif financial_type == 'pnl':
             header_keywords = str(config_dict['profit_and_loss_headers']).split(',')
             field_keywords = str(config_dict['profit_and_loss_fields']).split(',')
+            is_pnl = True
         else:
             raise Exception("No Input financial type provided")
         start_page, end_page = find_header_and_next_pages(pdf_path, header_keywords, field_keywords)
@@ -144,6 +152,76 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
             output = eval(output)
         except:
             output = json.loads(output)
+        # Use the directory of the provided PDF file
+        if financial_type == 'finance':
+            output_directory = os.path.dirname(pdf_path)  # Get the directory of the PDF file
+
+            # Define the JSON file name and path
+            open_ai_json_file_path = os.path.join(output_directory, "open_ai_finance.json")
+
+            # Save the processed output to the JSON file
+            with open(open_ai_json_file_path, 'w') as json_file:
+                json.dump(output, json_file, indent=4)
+            print(f"Processed output saved to {open_ai_json_file_path}")
+        elif financial_type == 'pnl':
+            output_directory = os.path.dirname(pdf_path)  # Get the directory of the PDF file
+
+            # Define the JSON file name and path
+            open_ai_json_file_path = os.path.join(output_directory, "open_ai_pnl.json")
+
+            # Save the processed output to the JSON file
+            with open(open_ai_json_file_path, 'w') as json_file:
+                json.dump(output, json_file, indent=4)
+            print(f"Processed output saved to {open_ai_json_file_path}")
+        else:
+            raise ValueError("Invalid financial_type. Expected 'finance' or 'pnl'.")
+            # Call get_split_status function after obtaining output
+            # Call get_split_status function after obtaining output
+        split_status, split_pdf_path, pdf_to_excel_conversion_status, excel_file_path = get_split_pdf_path(db_config, registration_no, database_id)
+        # Log the results from get_split_status
+        logging.info(
+            f"Fetched split_status: {split_status}, split_pdf_path: {split_pdf_path}, pdf_to_excel_conversion_status: {pdf_to_excel_conversion_status}, excel_path: {excel_file_path}")
+        if str(pdf_to_excel_conversion_status).lower() != 'y' and (excel_file_path == '' or excel_file_path is None):
+            # Example usage
+            print("split_pdf_path", split_pdf_path)
+            excel_file_path = os.path.splitext(split_pdf_path)[0] + '.xlsx'
+            # Standardize the path using pathlib (optional, but more robust)
+            excel_file_path = Path(excel_file_path).as_posix()  # Converts to use forward slashes
+            output_directory = os.path.dirname(excel_file_path)
+            print("output_directory", output_directory)
+            table_dataframes = azure_pdf_to_excel_conversion(split_pdf_path, excel_file_path)
+            if table_dataframes:
+                print(f"DataFrames have been written to {excel_file_path}")
+                print("Excel_file_path_1", excel_file_path)
+                excel_file_path = excel_file_path.replace('\\', '/')
+                print("Excel_file_path_2", excel_file_path)
+                update_excel_status_and_path(db_config, registration_no, database_id, excel_file_path)
+                # Replace the file extension with `.json`
+                if financial_type == 'finance':
+                    json_file_path = os.path.splitext(excel_file_path)[0] + "_finance.json"
+                elif financial_type == 'pnl':
+                    json_file_path = os.path.splitext(excel_file_path)[0] + "_pnl.json"
+                else:
+                    raise ValueError("Invalid financial_type. Expected 'finance' or 'pnl'.")
+                # Call the italian function
+                output, all_tags_data = australia_mapping_and_comp(output, excel_file_path, config_file_path,json_file_path,is_pnl)
+                if not is_pnl:
+                    insert_new_tags(db_config, registration_no, database_id, all_tags_data,column_name='finance_new_tags')
+                else:
+                    insert_new_tags(db_config, registration_no, database_id, all_tags_data, column_name='pnl_new_tags')
+        else:
+            if financial_type == 'finance':
+                json_file_path = os.path.splitext(excel_file_path)[0] + "_finance.json"
+            elif financial_type == 'pnl':
+                json_file_path = os.path.splitext(excel_file_path)[0] + "_pnl.json"
+            else:
+                raise ValueError("Invalid financial_type. Expected 'finance' or 'pnl'.")
+            output, all_tags_data = australia_mapping_and_comp(output, excel_file_path, config_file_path, json_file_path,is_pnl)
+            if not is_pnl:
+                insert_new_tags(db_config, registration_no, database_id, all_tags_data, column_name='finance_new_tags')
+            else:
+                insert_new_tags(db_config, registration_no, database_id, all_tags_data, column_name='pnl_new_tags')
+
         try:
             # Handle Group Output
             if len(output["Group"]) != 0:
@@ -183,60 +261,82 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         for key, value in company_output.items():
             company_year_df = main_company_df.copy()
             nature = 'Standalone'
-            for index,row in company_year_df.iterrows():
-                field_name = str(row.iloc[0]).strip()
-                main_node = row['main_dict_node']
-                value_type = str(row.iloc[1]).strip()
-                if value_type.lower() == 'straight':
-                    node = row['Node']
-                    if field_name == 'year':
-                        financial_value = key
-                    elif field_name == 'nature':
-                        financial_value = nature
-                    elif field_name == 'Currency':
-                        financial_value = currency
-                    elif field_name == 'filing_type':
-                        financial_value = 'Annual return'
-                    else:
-                        if pd.notna(main_node) and main_node != '' and main_node != 'nan':
-                            financial_value = value[main_node][node]
+            financial_value = None
+            for index, row in company_year_df.iterrows():
+                try:
+                    field_name = str(row.iloc[0]).strip()
+                    main_node = row['main_dict_node']
+                    value_type = str(row.iloc[1]).strip()
+                    if value_type.lower() == 'straight':
+                        node = row['Node']
+                        if field_name == 'year':
+                            financial_value = key
+                        elif field_name == 'nature':
+                            financial_value = nature
+                        elif field_name == 'Currency':
+                            financial_value = currency
+                        elif field_name == 'filing_type':
+                            if is_italian:
+                                financial_value = 'Italian PDF'
+                            else:
+                                financial_value = 'English PDF'
                         else:
-                            financial_value = value[node]
-                    try:
-                        if field_name != 'year':
-                            financial_value = float(financial_value)
-                    except:
-                        pass
-                    company_year_df.at[index, 'Value'] = financial_value
+                            if pd.notna(main_node) and main_node != '' and main_node != 'nan':
+                                financial_value = value[main_node][node]
+                            else:
+                                financial_value = value[node]
+                        try:
+                            if field_name != 'year':
+                                financial_value = str(financial_value).replace(',', '')
+                                financial_value = float(financial_value)
+                                print(financial_value)
+                        except Exception as e:
+                            print(f"Error occurred for {financial_value} {e}")
+                        if field_name == 'Other_Financial_Expenses':
+                            financial_value = -financial_value
+                except Exception as e:
+                    financial_value = None
+                company_year_df.at[index, 'Value'] = financial_value
             df_list.append(company_year_df)
         for key, value in group_output.items():
             group_year_df = main_group_df.copy()
             nature = 'Consolidated'
-            for index,row in group_year_df.iterrows():
-                field_name = str(row.iloc[0]).strip()
-                main_node = row['main_dict_node']
-                value_type = str(row.iloc[1]).strip()
-                if value_type.lower() == 'straight':
-                    node = row['Node']
-                    if field_name == 'year':
-                        financial_value = key
-                    elif field_name == 'nature':
-                        financial_value = nature
-                    elif field_name == 'Currency':
-                        financial_value = currency
-                    elif field_name == 'filing_type':
-                        financial_value = 'Annual return'
-                    else:
-                        if pd.notna(main_node) and main_node != '' and main_node != 'nan':
-                            financial_value = value[main_node][node]
+            financial_value = None
+            for index, row in group_year_df.iterrows():
+                try:
+                    field_name = str(row.iloc[0]).strip()
+                    main_node = row['main_dict_node']
+                    value_type = str(row.iloc[1]).strip()
+                    if value_type.lower() == 'straight':
+                        node = row['Node']
+                        if field_name == 'year':
+                            financial_value = key
+                        elif field_name == 'nature':
+                            financial_value = nature
+                        elif field_name == 'Currency':
+                            financial_value = currency
+                        elif field_name == 'filing_type':
+                            if is_italian:
+                                financial_value = 'Italian PDF'
+                            else:
+                                financial_value = 'English PDF'
                         else:
-                            financial_value = value[node]
-                    try:
-                        if field_name != 'year':
-                            financial_value = float(financial_value)
-                    except:
-                        pass
-                    group_year_df.at[index, 'Value'] = financial_value
+                            if pd.notna(main_node) and main_node != '' and main_node != 'nan':
+                                financial_value = value[main_node][node]
+                            else:
+                                financial_value = value[node]
+                        try:
+                            if field_name != 'year':
+                                financial_value = str(financial_value).replace(',', '')
+                                financial_value = float(financial_value)
+                                print(financial_value)
+                        except Exception as e:
+                            print(f"Error occurred for {financial_value} {e}")
+                        if field_name == 'Other_Financial_Expenses':
+                            financial_value = -financial_value
+                except Exception as e:
+                    financial_value = None
+                group_year_df.at[index, 'Value'] = financial_value
             df_list.append(group_year_df)
         for i, df in enumerate(df_list):
             formula_df = df[df[df.columns[1]] == config_dict['Formula_Keyword']]
@@ -251,12 +351,13 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         # current_formula = current_formula.replace(field_name, str(current_year_df[current_year_df['Field_Name'] == field_name]['Value'].values[0]))
                         if pd.notna(subtype) and subtype != '' and subtype != 'nan':
                             replacement_value = str(
-                                df[(df['Field_Name'] == field_name) & (df['main_dict_node'] == subtype)]['Value'].values[0])
+                                df[(df['Field_Name'] == field_name) & (df['main_dict_node'] == subtype)][
+                                    'Value'].values[0])
                         else:
                             replacement_value = str(
                                 df[df['Field_Name'] == field_name]['Value'].values[0])
                         replacement_value = str(replacement_value) if replacement_value != '' else '0'
-                        company_formula = re.sub(pattern, replacement_value,company_formula)
+                        company_formula = re.sub(pattern, replacement_value, company_formula)
                     except Exception as e:
                         continue
                 logging.info(company_formula_field_name + ":" + company_formula)
@@ -266,7 +367,8 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         company_formula = company_formula.replace('None', '0')
                     if pd.notna(subtype) and subtype != '' and subtype != 'nan':
                         df.at[
-                            df[(df['Field_Name'] == company_formula_field_name) & (df['main_dict_node'] == subtype)].index[
+                            df[(df['Field_Name'] == company_formula_field_name) & (
+                                    df['main_dict_node'] == subtype)].index[
                                 0], 'Value'] = round(eval(company_formula), 2)
                     else:
                         df.at[

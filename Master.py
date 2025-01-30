@@ -20,7 +20,7 @@ from SendEmail import send_email
 
 def main():
     excel_file = 'Australia_Main_Config.xlsx'
-    run_environment = os.environ.get('RunEnvironment')
+    run_environment = 'Dev'
     system_name = os.environ.get('SystemName')
     if 'dev' in run_environment.lower():
         sheet_name = "DEV"
@@ -51,13 +51,13 @@ def main():
                         company_name = pending_order[2]
                         workflow_status = pending_order[4]
                         if str(workflow_status).lower() == 'extraction_pending':
-                            data_extraction = data_extraction_and_insertion(db_config, registration_no, config_dict)
+                            data_extraction = data_extraction_and_insertion(db_config, registration_no, config_dict, database_id)
                             if data_extraction:
                                 logging.info(f"Successfully extracted data for reg no - {registration_no}")
                                 update_workflow_status(db_config, database_id, 'Loader_pending')
                                 update_locked_by_empty(db_config, database_id)
                         if str(workflow_status).lower() == 'loader_pending':
-                            loader_status, final_email_table, json_file_path, financial_table = json_loader_and_tables(db_config, excel_file, registration_no, receipt_no, config_dict, database_id)
+                            loader_status, final_email_table, json_file_path, financial_table, tags_table = json_loader_and_tables(db_config, excel_file, registration_no, receipt_no, config_dict, database_id)
                             if loader_status:
                                 logging.info(f"Successfully extracted JSON Loader for reg no - {registration_no}")
                                 update_workflow_status(db_config, database_id, 'Loader_generated')
@@ -69,7 +69,7 @@ def main():
                                                                                                      receipt_no)
                                 completed_body = str(config_dict['cin_Completed_body']).format(registration_no,
                                                                                                receipt_no, company_name,
-                                                                                               final_email_table, financial_table, system_name)
+                                                                                               final_email_table, financial_table, tags_table,system_name)
                                 business_mails = str(config_dict['business_mail']).split(',')
                                 attachments.append(json_file_path)
                                 attachments.append(transactional_log_file_path)
