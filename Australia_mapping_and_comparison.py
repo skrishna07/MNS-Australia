@@ -6,6 +6,7 @@ def australia_mapping_and_comp(output, excel_file_path, config_file_path, json_f
     config_file_path : Italian Financial Config
     excel_file_path  : PDF to Excel converted file.
     """
+    all_tags_data = []
     print("italian mapping an comp called")
     print("is_pnl",is_pnl)
     european_number_regex = r'^\d{1,3}(,\d{3})*$'

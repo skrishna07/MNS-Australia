@@ -89,11 +89,16 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
         if start_page is not None and end_page is not None:
             split_pdf(pdf_path,start_page,end_page,temp_pdf_path)
             extracted_text = extract_text_from_pdf(temp_pdf_path)
+            logging.info(extracted_text)
             extracted_text = extracted_text.replace(',', '')
             logging.info(extracted_text)
         else:
-            extracted_text = extract_text_from_pdf_with_keyword(pdf_path,header_keywords, field_keywords)
-            extracted_text = extracted_text.replace(',', '')
+           extracted_text = extract_text_from_pdf_with_keyword(pdf_path,header_keywords, field_keywords)
+           logging.info(extracted_text)
+           extracted_text = extracted_text.replace(',', '')
+
+       
+
         currency_fields = str(config_dict['currency_values']).split(',')
         if any(currency_field in extracted_text for currency_field in currency_fields):
             currency = 'AUD 000'
@@ -217,6 +222,7 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
             else:
                 raise ValueError("Invalid financial_type. Expected 'finance' or 'pnl'.")
             output, all_tags_data = australia_mapping_and_comp(output, excel_file_path, config_file_path, json_file_path,is_pnl)
+            print("latest tag",all_tags_data)
             if not is_pnl:
                 insert_new_tags(db_config, registration_no, database_id, all_tags_data, column_name='finance_new_tags')
             else:
@@ -276,10 +282,7 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         elif field_name == 'Currency':
                             financial_value = currency
                         elif field_name == 'filing_type':
-                            if is_italian:
-                                financial_value = 'Italian PDF'
-                            else:
-                                financial_value = 'English PDF'
+                            financial_value = 'Annual return'
                         else:
                             if pd.notna(main_node) and main_node != '' and main_node != 'nan':
                                 financial_value = value[main_node][node]
@@ -316,10 +319,7 @@ def finance_main(db_config, config_dict, pdf_path, registration_no, output_file_
                         elif field_name == 'Currency':
                             financial_value = currency
                         elif field_name == 'filing_type':
-                            if is_italian:
-                                financial_value = 'Italian PDF'
-                            else:
-                                financial_value = 'English PDF'
+                            financial_value = 'Annual return'
                         else:
                             if pd.notna(main_node) and main_node != '' and main_node != 'nan':
                                 financial_value = value[main_node][node]

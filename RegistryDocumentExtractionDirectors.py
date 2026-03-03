@@ -88,8 +88,7 @@ def get_age(DOB):
         return None
 
 
-def registry_document_main_director(db_config, config_dict, pdf_path, output_file_path, registration_no, input_type,
-                                    temp_directors_pdf_path):
+def registry_document_main_director(db_config, config_dict, pdf_path, output_file_path, registration_no, input_type, temp_directors_pdf_path):
     setup_logging()
     error_count = 0
     errors = []
@@ -113,24 +112,18 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
         except Exception as e:
             raise Exception(f"Below exception occurred while reading mapping file {e}")
         text_files = os.listdir(text_files_folder)
-        print(text_files)
         output_dataframes_list = []
         for text_file in text_files:
-            print(text_file)
             try:
                 file_path = os.path.join(text_files_folder, text_file)
                 with open(file_path, 'r') as file:
                     # Read the contents of the file
                     file_data = file.read()
-                    print(file_data)
                 df_map['Value'] = None
                 single_df = df_map[df_map[df_map.columns[1]] == config_dict['single_keyword']]
-                print(single_df)
                 group_df = df_map[df_map[df_map.columns[1]] == config_dict['group_keyword']]
-                print(group_df)
                 single_nodes = single_df['Node'].unique()
                 open_ai_dict = {field_name: '' for field_name in single_nodes}
-                print(open_ai_dict)
                 for index, row in group_df.iterrows():
                     node_values = str(row['Node']).split(',')
                     sub_dict = {field_name: '' for field_name in node_values}
@@ -175,7 +168,7 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                 group_df = df_map[df_map[df_map.columns[1]] == config_dict['group_keyword']]
                 output_dataframes_list.append(single_df)
                 output_dataframes_list.append(group_df)
-                logging.info("output_file_path", output_file_path)
+                logging.info("output_file_path",output_file_path)
                 registration_no_column_name = config_dict['registration_no_Column_name']
                 sql_tables_list = single_df[single_df.columns[3]].unique()
                 for table_name in sql_tables_list:
@@ -192,9 +185,9 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                         json_string = json.dumps(json_dict)
                         logging.info(json_string)
                         try:
-                            update_database_single_value(db_config, table_name, registration_no_column_name,
-                                                         registration_no,
-                                                         column_name, json_string)
+                            update_database_single_value(db_config, table_name,registration_no_column_name,
+                                                                                   registration_no,
+                                                                                   column_name, json_string)
                         except Exception as e:
                             logging.error(f"Exception {e} occurred while updating data in dataframe for {table_name} "
                                           f"with data {json_string}")
@@ -212,15 +205,12 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                         column_names = str(row.iloc[4]).strip()
                         main_group_node = str(row.iloc[6]).strip()
                         value_list = row['Value'] or []
-                        print(value_list)
                         if len(value_list) == 0:
                             logging.info(f"No value for {field_name} so going to next field")
                             continue
                         table_df = pd.DataFrame(value_list)
-                        print(table_df)
                         logging.info(table_df)
                         column_names_list = column_names.split(',')
-                        print(column_names_list)
                         column_names_list = [x.strip() for x in column_names_list]
                         table_df = table_df.fillna('')
                         if sql_table_name == 'authorized_signatories':
@@ -229,16 +219,10 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                             for index_dob, row_dob in table_df.iterrows():
                                 try:
                                     date_of_birth = row_dob['born']
-                                    nationality = row_dob['country_in_born']
-                                    if 'nsw'  in str(nationality).lower():
-                                        nationality='Australian'
-                                    print(date_of_birth)
                                     age = None
                                     if date_of_birth is not None:
                                         age = get_age(date_of_birth)
-                                        print(age)
                                     table_df.at[index_dob, 'age'] = age
-                                    table_df.at[index_dob,'nationality']=nationality
                                 except Exception as e:
                                     logging.error(f"Exception {e} occurred while getting age")
                                     error_count += 1
@@ -250,14 +234,13 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                             table_df['percentage_holding'] = None
                             column_names_list.append('percentage_holding')
                             try:
-                                total_equity_shares = \
-                                single_df[single_df['Field_Name'] == 'paid_up_capital']['Value'].values[0]
+                                total_equity_shares = single_df[single_df['Field_Name'] == 'paid_up_capital']['Value'].values[0]
                                 total_equity_shares = float(total_equity_shares)
                                 for index_share, row_share in table_df.iterrows():
                                     try:
                                         no_of_shares = str(row_share['Nominal_shares']).replace(',', '')
                                         no_of_shares = float(no_of_shares)
-                                        percentage_holding = (no_of_shares / total_equity_shares) * 100
+                                        percentage_holding = (no_of_shares / total_equity_shares)*100
                                     except Exception as e:
                                         logging.error(f"Error fetching percentage holding {e}")
                                         percentage_holding = None
@@ -281,8 +264,7 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                         # print(sql_table_name)
                         for _, df_row in table_df.iterrows():
                             try:
-                                insert_datatable_with_table_director(config_dict, db_config, sql_table_name,
-                                                                     column_names_list,
+                                insert_datatable_with_table_director(config_dict, db_config, sql_table_name, column_names_list,
                                                                      df_row, field_name)
                             except Exception as e:
                                 logging.info(
@@ -301,14 +283,13 @@ def registry_document_main_director(db_config, config_dict, pdf_path, output_fil
                             if frame.filename == __file__:
                                 errors.append(f"Line {frame.lineno}: {frame.line} - {str(e)}")
             except Exception as e:
-                logging.error(
-                    f"Exception occurred while processing file at file path {str(os.path.join(text_file, text_files_folder))}")
+                logging.error(f"Exception occurred while processing file at file path {str(os.path.join(text_file, text_files_folder))}")
                 error_count += 1
                 tb = traceback.extract_tb(e.__traceback__)
                 for frame in tb:
                     if frame.filename == __file__:
                         errors.append(f"Line {frame.lineno}: {frame.line} - {str(e)}")
-
+                
         with pd.ExcelWriter(output_file_path, engine='xlsxwriter') as writer:
             row_index = 0
             for dataframe in output_dataframes_list:
