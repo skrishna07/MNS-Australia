@@ -65,9 +65,9 @@ def new_tags_table(db_config, registration_no, database_id):
         tags_query = """
             SELECT finance_new_tags, pnl_new_tags
             FROM documents
-            WHERE registration_no = %s AND id = %s
+            WHERE registration_no = %s AND category='Financials'
         """
-        cursor.execute(tags_query, (registration_no, database_id))
+        cursor.execute(tags_query, (registration_no,))
         tags_result = cursor.fetchone()
 
         if tags_result:

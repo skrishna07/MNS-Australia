@@ -381,7 +381,10 @@ def insert_datatable_with_table_director(config_dict, db_config, sql_table_name,
                 column_names_list = list(column_names_list)
                 column_names_list.remove(registration_column_name)
                 column_names_list.remove(name_column_name)
-                update_query = f'''UPDATE {sql_table_name} SET {', '.join([f'{col} = "{str(result_dict[col])}"' for col in column_names_list])} 
+                if sql_table_name=='branch_address':
+                  update_query = f'''UPDATE {sql_table_name} SET address = "{name}" WHERE {registration_column_name} = "{registration_no}"'''
+                else:
+                  update_query = f'''UPDATE {sql_table_name} SET {', '.join([f'{col} = "{str(result_dict[col])}"' for col in column_names_list])} 
                                 WHERE {registration_column_name} = "{registration_no}" AND {name_column_name} = "{name}"'''
                 logging.info(update_query)
                 db_cursor.execute(update_query)
@@ -744,11 +747,11 @@ def get_split_status(db_config, registration_no, database_id):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
-        split_status_query = f"select split_status from documents where registration_no = '{registration_no}' and id = {database_id}"
+        split_status_query = f"SELECT split_status FROM documents WHERE registration_no = '{registration_no}' AND category='Financials' AND document_extraction_status = 'Pending'"
         logging.info(split_status_query)
         cursor.execute(split_status_query)
-        result = cursor.fetchone()[0]
-        logging.info(f"Split status retrieved successfully for registration_no={registration_no}, id={database_id}: {result[0]}")
+        result = cursor.fetchone()[0]  # Getting the first value from the result tuple
+        logging.info(f"Split status retrieved successfully for registration_no={registration_no}, id={database_id}: {result}")
         return result
     except Exception as e:
         logging.error(f"An unexpected exception occurred: {e}")
@@ -757,12 +760,13 @@ def get_split_status(db_config, registration_no, database_id):
         cursor.close()
         connection.close()
 
+
 def update_split_status_and_split_pdf_path(db_config, registration_no, database_id, split_pdf_path):
     setup_logging()
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
-        update_split_status_path__query = f"UPDATE documents SET split_status = 'Y', split_pdf_path = '{split_pdf_path}' WHERE registration_no = '{registration_no}' AND id = {database_id}"
+        update_split_status_path__query = f"UPDATE documents SET split_status = 'Y', split_pdf_path = '{split_pdf_path}' WHERE registration_no = '{registration_no}' AND category='Financials' AND document_extraction_status = 'Pending'"
         logging.info(update_split_status_path__query)
         cursor.execute(update_split_status_path__query)
         connection.commit()
@@ -779,7 +783,7 @@ def get_split_pdf_path(db_config, registration_no, database_id):
     try:
         query = (
             f"SELECT split_status, split_pdf_path, pdf_to_excel_conversion_status,excel_path "  
-            f"FROM documents WHERE registration_no = '{registration_no}' AND id = {database_id}"
+            f"FROM documents WHERE registration_no = '{registration_no}'AND category='Financials' AND document_extraction_status = 'Pending'"
         )
         logging.info(query)
         cursor.execute(query)
@@ -814,7 +818,7 @@ def update_excel_status_and_path(db_config, registration_no, database_id, excel_
         # Update pdf_to_excel_conversion_status to 'Y' and set the excel_path
         update_query = (
             f"UPDATE documents SET pdf_to_excel_conversion_status = 'Y', excel_path = '{excel_path}' "
-            f"WHERE registration_no = '{registration_no}' AND id = {database_id}"
+            f"WHERE registration_no = '{registration_no}' AND id = {database_id} AND document_extraction_status = 'Pending'"
         )
         logging.info(update_query)
         cursor.execute(update_query)
@@ -828,38 +832,37 @@ def update_excel_status_and_path(db_config, registration_no, database_id, excel_
     finally:
         cursor.close()
         connection.close()
+
 def insert_new_tags(db_config, registration_no, database_id, all_tags_data, column_name):
     setup_logging()
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
-        # Serialize `all_tags_data` to JSON if it is a list or dictionary
+        # Ensure all_tags_data is a string or serialize it to JSON if needed
         if isinstance(all_tags_data, (list, dict)):
-            all_tags_data = json.dumps(all_tags_data)
+            all_tags_data = json.dumps(all_tags_data)  # Convert to JSON if it's a list or dictionary
 
-        # Construct the dynamic update query with placeholders for parameters
-        update_query = f"UPDATE documents SET {column_name} = %s WHERE registration_no = %s AND id = %s"
+            all_tags_data_safe = f"'{all_tags_data}'"if all_tags_data else "NULL"
 
-        # Log the query for debugging purposes (omit actual data for safety)
-        logging.info(f"Executing query: {update_query} with data: {column_name}, {registration_no}, {database_id}")
+            # Create the dynamic update query
+            update_query = (
+                    f"UPDATE documents SET {column_name} = {all_tags_data_safe} "
+                    f"WHERE registration_no = '{registration_no}' AND category = 'Financials'"
+                )
 
-        # Execute the query with parameterized data
-        cursor.execute(update_query, (all_tags_data, registration_no, database_id))
-        connection.commit()  # Commit the changes
-
-        logging.info(
-            f"Successfully updated column '{column_name}' with new tags data for registration_no={registration_no}, id={database_id}")
-        return True  # Return True to indicate success
-    except mysql.connector.Error as db_error:
-        logging.error(f"Database error occurred: {db_error}")
-        return False  # Return False in case of a database error
+        logging.info(update_query)
+        cursor.execute(update_query)
+        connection.commit()
+        logging.info(f"Updated {column_name} with new tags.")
+        return True  # Return True to indicate the update was successful
     except Exception as e:
-        logging.error(f"Unexpected error occurred: {e}")
-        return False  # Return False in case of a general error
+        logging.error(f"Exception occurred while updating {column_name}: {e}")
+        return False  # Return False if an error occurred
     finally:
         cursor.close()
         connection.close()
-        logging.info("Database connection closed.")
+
+
 
 def get_new_tags(db_config, registration_no, database_id):
     setup_logging()
@@ -892,3 +895,25 @@ def get_new_tags(db_config, registration_no, database_id):
     finally:
         cursor.close()
         connection.close()
+
+def check_repeated_orders(db_config,registration_no):
+    setup_logging()
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        repeated_order_query = f"select count(*) from orders where registration_no = '{registration_no}'"
+        logging.info(repeated_order_query)
+        cursor.execute(repeated_order_query)
+        repeated_order_query = cursor.fetchall()
+        print(repeated_order_query)
+        count = repeated_order_query[0][0]
+        cursor.close()
+        connection.close()
+        if count > 1:
+            result = "Yes, this one is a repeated order"
+        else:
+            result = "No, this one is not a repeated order"
+
+        return result
+    except Exception as e:
+        logging.error(f"Error in fetching number of pending files {e}")

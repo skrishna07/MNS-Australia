@@ -79,12 +79,12 @@ def registry_document_main(db_config, config_dict, pdf_path, output_file_path, r
         if input_type == 'directors':
             start_key = config_dict['director_start_keyword']
             end_key = config_dict['director_end_keyword']
-            pdf_text = extract_text_from_pdf_between_two_keywords(pdf_path, start_key, end_key)
+            pdf_text = extract_text_from_pdf(pdf_path)
             form10_prompt = config_dict['registry_prompt_other_directors'] + '\n' + str(open_ai_dict)
         else:
             header=config_dict['registry_headers']
             fields=config_dict['registry_field_keyword']
-            pdf_text=extract_text_from_pdf_with_keyword(pdf_path,header,fields)
+            pdf_text = extract_text_from_pdf(pdf_path)
             form10_prompt = config_dict['registry_prompt'] + '\n' + str(open_ai_dict)
         output = split_openai(pdf_text, form10_prompt)
         output = remove_text_before_marker(output, "```json")
